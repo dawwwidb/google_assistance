@@ -26,9 +26,10 @@
 #include <LiquidCrystal_I2C.h>
 
 
-//#include "sound.h" //Simlpe sounf function
 #define Port_Sound D8
 #define Port_LED D7
+// Set the LCD address to 0x27 for a 16 chars and 2 line display
+LiquidCrystal_I2C lcd(0x27, 16, 2);
 
 #include "passwd.h" //Paswords
 /*
@@ -76,14 +77,14 @@ void MQTT_connect();
 
 void setup() {
   Serial.begin(115200);
-  delay(10);
-  Serial.println("Witaj swiecie");
-
 pinMode( Port_Sound, OUTPUT);
 pinMode( Port_LED, OUTPUT);
 
+lcd.begin();// initialize the LCD
+lcd.clear();// - czyści ekran
+lcd.backlight();// Turn on the blacklight and print a message.
+lcd.print("Witaj Swiecie!");
 
-  Serial.println(F("Adafruit MQTT demo"));
 
   // Connect to WiFi access point.
   Serial.println(); Serial.println();
@@ -100,6 +101,12 @@ pinMode( Port_LED, OUTPUT);
 //Wifi connected
   Serial.println("WiFi connected");
   Serial.println("IP address: "); Serial.println(WiFi.localIP());
+  
+  
+  lcd.clear();// - czyści ekran//lcd.print("                ");
+  lcd.setCursor(0, 0);
+  lcd.print(WiFi.localIP()); 
+  
   tone(Port_Sound, 2000);delay(500);noTone(Port_Sound);
 
   
@@ -111,6 +118,7 @@ pinMode( Port_LED, OUTPUT);
 uint32_t x=0;
 
 void loop() {
+  //lcd.clear();// - czyści ekran
   // Ensure the connection to the MQTT server is alive (this will make the first
   // connection and automatically reconnect when disconnected).  See the MQTT_connect
   // function definition further below.
@@ -118,7 +126,12 @@ void loop() {
   // this is our 'wait for incoming subscription packets' busy subloop
   // try to spend your time here
 
-  Adafruit_MQTT_Subscribe *subscription;
+//lcd.clear();// - czyści ekran
+lcd.setCursor(0, 1);
+lcd.print("Przelacznik:");
+
+
+Adafruit_MQTT_Subscribe *subscription;
   while ((subscription = mqtt.readSubscription(500))) {
     if (subscription == &Sub_Light) {
       Serial.print(F("Got: "));
@@ -127,10 +140,12 @@ void loop() {
 
       if (strcmp((char *)Sub_Light.lastread, "ON") == 0) {
         digitalWrite(Port_LED, HIGH);
+        lcd.setCursor(12, 1);lcd.print("ON ");        
         tone(Port_Sound, 1000);delay(250);noTone(Port_Sound);
       }
       if (strcmp((char *)Sub_Light.lastread, "OFF") == 0) {
-        digitalWrite(Port_LED, LOW); 
+        digitalWrite(Port_LED, LOW);
+        lcd.setCursor(12, 1);lcd.print("OFF");        
         tone(Port_Sound, 3000);delay(100);noTone(Port_Sound);delay(50);tone(Port_Sound, 3000);delay(100);noTone(Port_Sound);
       }
     }
