@@ -16,9 +16,19 @@
   MIT license, all text above must be included in any redistribution
  ****************************************************/
 #include <ESP8266WiFi.h>
+
+//adafruit
 #include "Adafruit_MQTT.h"
 #include "Adafruit_MQTT_Client.h"
 
+//LCD 2x16
+#include <Wire.h> 
+#include <LiquidCrystal_I2C.h>
+
+
+//#include "sound.h" //Simlpe sounf function
+#define Port_Sound D8
+#define Port_LED D7
 
 #include "passwd.h" //Paswords
 /*
@@ -50,10 +60,13 @@ Adafruit_MQTT_Client mqtt(&client, AIO_SERVER, AIO_SERVERPORT, AIO_USERNAME, AIO
 
 // Setup a feed called 'photocell' for publishing.
 // Notice MQTT paths for AIO follow the form: <username>/feeds/<feedname>
-Adafruit_MQTT_Publish photocell = Adafruit_MQTT_Publish(&mqtt, AIO_USERNAME "/feeds/photocell");
+//Adafruit_MQTT_Publish photocell = Adafruit_MQTT_Publish(&mqtt, AIO_USERNAME "/feeds/photocell");
+Adafruit_MQTT_Publish Pub_Light = Adafruit_MQTT_Publish(&mqtt, AIO_USERNAME "/feeds/esp8266.light");  //Publikacja stanu
 
 // Setup a feed called 'onoff' for subscribing to changes.
-Adafruit_MQTT_Subscribe onoffbutton = Adafruit_MQTT_Subscribe(&mqtt, AIO_USERNAME "/feeds/onoff");
+//Adafruit_MQTT_Subscribe light = Adafruit_MQTT_Subscribe(&mqtt, AIO_USERNAME "/feeds/light");
+Adafruit_MQTT_Subscribe Sub_Light = Adafruit_MQTT_Subscribe(&mqtt, AIO_USERNAME "/feeds/esp8266.light"); //Pobranie stanu
+
 
 /*************************** Sketch Code ************************************/
 
@@ -64,6 +77,11 @@ void MQTT_connect();
 void setup() {
   Serial.begin(115200);
   delay(10);
+  Serial.println("Witaj swiecie");
+
+pinMode( Port_Sound, OUTPUT);
+pinMode( Port_LED, OUTPUT);
+
 
   Serial.println(F("Adafruit MQTT demo"));
 
@@ -79,11 +97,15 @@ void setup() {
   }
   Serial.println();
 
+//Wifi connected
   Serial.println("WiFi connected");
   Serial.println("IP address: "); Serial.println(WiFi.localIP());
+  tone(Port_Sound, 2000);delay(500);noTone(Port_Sound);
+
+  
 
   // Setup MQTT subscription for onoff feed.
-  mqtt.subscribe(&onoffbutton);
+  mqtt.subscribe(&Sub_Light); //pobranie stanu Light
 }
 
 uint32_t x=0;
@@ -93,27 +115,37 @@ void loop() {
   // connection and automatically reconnect when disconnected).  See the MQTT_connect
   // function definition further below.
   MQTT_connect();
-
   // this is our 'wait for incoming subscription packets' busy subloop
   // try to spend your time here
 
   Adafruit_MQTT_Subscribe *subscription;
-  while ((subscription = mqtt.readSubscription(5000))) {
-    if (subscription == &onoffbutton) {
+  while ((subscription = mqtt.readSubscription(500))) {
+    if (subscription == &Sub_Light) {
       Serial.print(F("Got: "));
-      Serial.println((char *)onoffbutton.lastread);
+      Serial.print((char *)Sub_Light.lastread);
+      Serial.println(" LIGHT");
+
+      if (strcmp((char *)Sub_Light.lastread, "ON") == 0) {
+        digitalWrite(Port_LED, HIGH);
+        tone(Port_Sound, 1000);delay(250);noTone(Port_Sound);
+      }
+      if (strcmp((char *)Sub_Light.lastread, "OFF") == 0) {
+        digitalWrite(Port_LED, LOW); 
+        tone(Port_Sound, 3000);delay(100);noTone(Port_Sound);delay(50);tone(Port_Sound, 3000);delay(100);noTone(Port_Sound);
+      }
     }
+    
   }
 
   // Now we can publish stuff!
-  Serial.print(F("\nSending photocell val "));
+  /*Serial.print(F("\nSending photocell val "));
   Serial.print(x);
   Serial.print("...");
   if (! photocell.publish(x++)) {
     Serial.println(F("Failed"));
   } else {
     Serial.println(F("OK!"));
-  }
+  }*/
 
   // ping the server to keep the mqtt connection alive
   // NOT required if you are publishing once every KEEPALIVE seconds
@@ -137,6 +169,7 @@ void MQTT_connect() {
   Serial.print("Connecting to MQTT... ");
 
   uint8_t retries = 3;
+  
   while ((ret = mqtt.connect()) != 0) { // connect will return 0 for connected
        Serial.println(mqtt.connectErrorString(ret));
        Serial.println("Retrying MQTT connection in 5 seconds...");
@@ -149,4 +182,9 @@ void MQTT_connect() {
        }
   }
   Serial.println("MQTT Connected!");
+      tone(Port_Sound, 2000); //Wygeneruj sygnał o częstotliwości 2000Hz 
+      delay(500);  
+      tone(Port_Sound, 800); //Wygeneruj sygnał o częstotliwości 2000Hz 
+      delay(500);  
+      noTone(Port_Sound);
 }
