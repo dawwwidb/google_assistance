@@ -22,28 +22,34 @@
 #include "Adafruit_MQTT_Client.h"
 
 //LCD 2x16
-#include <Wire.h> 
+#include <Wire.h>
 #include <LiquidCrystal_I2C.h>
 
 
-#define Port_Sound D8
-#define Port_LED D7
+#define Port_Switch D7       //switch       
+#define Port_Sound D8       //spiker
+#define Port_LED D0        // Analog output pin that the LED is attached to
+#define Port_analog_in_pin A0      // Analog input pin that the potentiometer is attached to
+
+int Value_analog_in = 0;        // value read from the pot
+int Value_analog_out = 0;        // value output to the PWM (analog out) - przeskalowany
+
 // Set the LCD address to 0x27 for a 16 chars and 2 line display
 LiquidCrystal_I2C lcd(0x27, 16, 2);
 
 #include "passwd.h" //Paswords
 /*
-//************************* WiFi Access Point *********************************
+  //************************* WiFi Access Point *********************************
 
-#define WLAN_SSID       "...your SSID..."
-#define WLAN_PASS       "...your password..."
+  #define WLAN_SSID       "...your SSID..."
+  #define WLAN_PASS       "...your password..."
 
-//************************* Adafruit.io Setup *********************************
+  //************************* Adafruit.io Setup *********************************
 
-#define AIO_SERVER      "io.adafruit.com"
-#define AIO_SERVERPORT  1883                   // use 8883 for SSL
-#define AIO_USERNAME    "...your AIO username (see https://accounts.adafruit.com)..."
-#define AIO_KEY         "...your AIO key..."
+  #define AIO_SERVER      "io.adafruit.com"
+  #define AIO_SERVERPORT  1883                   // use 8883 for SSL
+  #define AIO_USERNAME    "...your AIO username (see https://accounts.adafruit.com)..."
+  #define AIO_KEY         "...your AIO key..."
 */
 
 
@@ -77,13 +83,17 @@ void MQTT_connect();
 
 void setup() {
   Serial.begin(115200);
-pinMode( Port_Sound, OUTPUT);
-pinMode( Port_LED, OUTPUT);
 
-lcd.begin();// initialize the LCD
-lcd.clear();// - czyści ekran
-lcd.backlight();// Turn on the blacklight and print a message.
-lcd.print("Witaj Swiecie!");
+  pinMode( Port_Sound, OUTPUT);
+  pinMode( Port_LED, OUTPUT);
+
+
+
+
+  lcd.begin();// initialize the LCD
+  lcd.clear();// - czyści ekran
+  lcd.backlight();// Turn on the blacklight and print a message.
+  lcd.print("Witaj Swiecie!");
 
 
   // Connect to WiFi access point.
@@ -98,26 +108,42 @@ lcd.print("Witaj Swiecie!");
   }
   Serial.println();
 
-//Wifi connected
+  //Wifi connected
   Serial.println("WiFi connected");
   Serial.println("IP address: "); Serial.println(WiFi.localIP());
-  
-  
+
+
   lcd.clear();// - czyści ekran//lcd.print("                ");
   lcd.setCursor(0, 0);
-  lcd.print(WiFi.localIP()); 
-  
-  tone(Port_Sound, 2000);delay(500);noTone(Port_Sound);
+  lcd.print(WiFi.localIP());
 
-  
+  tone(Port_Sound, 2000); delay(500); noTone(Port_Sound);
+
+
 
   // Setup MQTT subscription for onoff feed.
   mqtt.subscribe(&Sub_Light); //pobranie stanu Light
 }
 
-uint32_t x=0;
+uint32_t x = 0;
 
 void loop() {
+
+
+  //Value_analog_in = 0;        // value read from the pot
+  //Value_analog_out = 0;        // value output to the PWM (analog out) - przeskalowany
+
+  //odczyt wartości 0-1023
+  Value_analog_in = analogRead(Port_analog_in_pin);
+  // mappowanie zakresu
+  Value_analog_out = map(Value_analog_in, 0, 1023, 0, 255);
+  Serial.print("sensor = ");
+  Serial.print(Value_analog_in);
+  Serial.print("\t output = ");
+  Serial.println(Value_analog_out);
+
+
+
   //lcd.clear();// - czyści ekran
   // Ensure the connection to the MQTT server is alive (this will make the first
   // connection and automatically reconnect when disconnected).  See the MQTT_connect
@@ -126,12 +152,16 @@ void loop() {
   // this is our 'wait for incoming subscription packets' busy subloop
   // try to spend your time here
 
-//lcd.clear();// - czyści ekran
-lcd.setCursor(0, 1);
-lcd.print("Przelacznik:");
+  //lcd.clear();// - czyści ekran
+  lcd.setCursor(0, 1);
+  lcd.print("Przelacznik:");
+
+  if (Value_analog_out<10) {lcd.setCursor(13, 0);lcd.print("  "); lcd.print(Value_analog_out);}
+  else if (Value_analog_out<100) {lcd.setCursor(13, 0); lcd.print(" ");lcd.print(Value_analog_out);}
+  else {lcd.setCursor(13, 0);lcd.print(Value_analog_out);}
 
 
-Adafruit_MQTT_Subscribe *subscription;
+  Adafruit_MQTT_Subscribe *subscription;
   while ((subscription = mqtt.readSubscription(500))) {
     if (subscription == &Sub_Light) {
       Serial.print(F("Got: "));
@@ -140,34 +170,34 @@ Adafruit_MQTT_Subscribe *subscription;
 
       if (strcmp((char *)Sub_Light.lastread, "ON") == 0) {
         digitalWrite(Port_LED, HIGH);
-        lcd.setCursor(12, 1);lcd.print("ON ");        
-        tone(Port_Sound, 1000);delay(250);noTone(Port_Sound);
+        lcd.setCursor(12, 1); lcd.print("ON ");
+        tone(Port_Sound, 1000); delay(250); noTone(Port_Sound);
       }
       if (strcmp((char *)Sub_Light.lastread, "OFF") == 0) {
         digitalWrite(Port_LED, LOW);
-        lcd.setCursor(12, 1);lcd.print("OFF");        
-        tone(Port_Sound, 3000);delay(100);noTone(Port_Sound);delay(50);tone(Port_Sound, 3000);delay(100);noTone(Port_Sound);
+        lcd.setCursor(12, 1); lcd.print("OFF");
+        tone(Port_Sound, 3000); delay(100); noTone(Port_Sound); delay(50); tone(Port_Sound, 3000); delay(100); noTone(Port_Sound);
       }
     }
-    
+
   }
 
   // Now we can publish stuff!
   /*Serial.print(F("\nSending photocell val "));
-  Serial.print(x);
-  Serial.print("...");
-  if (! photocell.publish(x++)) {
+    Serial.print(x);
+    Serial.print("...");
+    if (! photocell.publish(x++)) {
     Serial.println(F("Failed"));
-  } else {
+    } else {
     Serial.println(F("OK!"));
-  }*/
+    }*/
 
   // ping the server to keep the mqtt connection alive
   // NOT required if you are publishing once every KEEPALIVE seconds
   /*
-  if(! mqtt.ping()) {
+    if(! mqtt.ping()) {
     mqtt.disconnect();
-  }
+    }
   */
 }
 
@@ -184,22 +214,22 @@ void MQTT_connect() {
   Serial.print("Connecting to MQTT... ");
 
   uint8_t retries = 3;
-  
+
   while ((ret = mqtt.connect()) != 0) { // connect will return 0 for connected
-       Serial.println(mqtt.connectErrorString(ret));
-       Serial.println("Retrying MQTT connection in 5 seconds...");
-       mqtt.disconnect();
-       delay(5000);  // wait 5 seconds
-       retries--;
-       if (retries == 0) {
-         // basically die and wait for WDT to reset me
-         while (1);
-       }
+    Serial.println(mqtt.connectErrorString(ret));
+    Serial.println("Retrying MQTT connection in 5 seconds...");
+    mqtt.disconnect();
+    delay(5000);  // wait 5 seconds
+    retries--;
+    if (retries == 0) {
+      // basically die and wait for WDT to reset me
+      while (1);
+    }
   }
   Serial.println("MQTT Connected!");
-      tone(Port_Sound, 2000); //Wygeneruj sygnał o częstotliwości 2000Hz 
-      delay(500);  
-      tone(Port_Sound, 800); //Wygeneruj sygnał o częstotliwości 2000Hz 
-      delay(500);  
-      noTone(Port_Sound);
+  tone(Port_Sound, 2000); //Wygeneruj sygnał o częstotliwości 2000Hz
+  delay(500);
+  tone(Port_Sound, 800); //Wygeneruj sygnał o częstotliwości 2000Hz
+  delay(500);
+  noTone(Port_Sound);
 }
