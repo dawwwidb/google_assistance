@@ -26,13 +26,20 @@
 #include <LiquidCrystal_I2C.h>
 
 
-#define Port_Switch D7       //switch       
+#define Port_Button D7      //Button       
 #define Port_Sound D8       //spiker
-#define Port_LED D0        // Analog output pin that the LED is attached to
+#define Port_LED D0         // Analog output pin that the LED is attached to
 #define Port_analog_in_pin A0      // Analog input pin that the potentiometer is attached to
+
+//RGB wspólny +
+#define Port_LEDR D3  //R
+#define Port_LEDG D4  //G + dioda esp8266
+#define Port_LEDB D5  //B
+
 
 int Value_analog_in = 0;        // value read from the pot
 int Value_analog_out = 0;        // value output to the PWM (analog out) - przeskalowany
+int State_Button = 0;           //Stan przycisku
 
 // Set the LCD address to 0x27 for a 16 chars and 2 line display
 LiquidCrystal_I2C lcd(0x27, 16, 2);
@@ -87,8 +94,17 @@ void setup() {
   pinMode( Port_Sound, OUTPUT);
   pinMode( Port_LED, OUTPUT);
 
+  //RGB
+  pinMode( Port_LEDR, OUTPUT);
+  pinMode( Port_LEDG, OUTPUT);
+  pinMode( Port_LEDB, OUTPUT);
+  digitalWrite(Port_LEDR, LOW);Serial.println(" R");delay(100);digitalWrite(Port_LEDR, HIGH);delay(100);
+  digitalWrite(Port_LEDG, LOW);Serial.println(" G");delay(100);digitalWrite(Port_LEDG, HIGH);delay(100);
+  digitalWrite(Port_LEDB, LOW);Serial.println(" B");delay(100);digitalWrite(Port_LEDB, HIGH);delay(100);
+  //delay(500);
 
-
+  //Przycisk
+  pinMode(Port_Button, INPUT);
 
   lcd.begin();// initialize the LCD
   lcd.clear();// - czyści ekran
@@ -143,6 +159,17 @@ void loop() {
   Serial.println(Value_analog_out);
 
 
+State_Button = digitalRead(Port_Button);
+    // check if the pushbutton is pressed. If it is, the buttonState is HIGH:
+  if (State_Button == HIGH) {
+    // turn LED_RED on:
+    digitalWrite(Port_LEDG, HIGH);
+  } else {
+    // turn LED off:
+    digitalWrite(Port_LEDG, LOW);
+  }
+
+
 
   //lcd.clear();// - czyści ekran
   // Ensure the connection to the MQTT server is alive (this will make the first
@@ -156,9 +183,9 @@ void loop() {
   lcd.setCursor(0, 1);
   lcd.print("Przelacznik:");
 
-  if (Value_analog_out<10) {lcd.setCursor(13, 0);lcd.print("  "); lcd.print(Value_analog_out);}
-  else if (Value_analog_out<100) {lcd.setCursor(13, 0); lcd.print(" ");lcd.print(Value_analog_out);}
-  else {lcd.setCursor(13, 0);lcd.print(Value_analog_out);}
+  if (Value_analog_out<10) {lcd.setCursor(13, 0);lcd.print("  "); lcd.print(Value_analog_out);digitalWrite(Port_LEDB, LOW);digitalWrite(Port_LEDR, HIGH);}
+  else if (Value_analog_out<100) {lcd.setCursor(13, 0); lcd.print(" ");lcd.print(Value_analog_out);digitalWrite(Port_LEDB, HIGH);digitalWrite(Port_LEDR, LOW);}
+  else {lcd.setCursor(13, 0);lcd.print(Value_analog_out);digitalWrite(Port_LEDB, HIGH);digitalWrite(Port_LEDR, HIGH);}
 
 
   Adafruit_MQTT_Subscribe *subscription;
