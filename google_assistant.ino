@@ -62,6 +62,7 @@ LiquidCrystal_I2C lcd(0x27, 16, 2);
 
 /************ Global State (you don't need to change this!) ******************/
 
+
 // Create an ESP8266 WiFiClient class to connect to the MQTT server.
 WiFiClient client;
 // or... use WiFiFlientSecure for SSL
@@ -75,7 +76,7 @@ Adafruit_MQTT_Client mqtt(&client, AIO_SERVER, AIO_SERVERPORT, AIO_USERNAME, AIO
 // Setup a feed called 'photocell' for publishing.
 // Notice MQTT paths for AIO follow the form: <username>/feeds/<feedname>
 //Adafruit_MQTT_Publish photocell = Adafruit_MQTT_Publish(&mqtt, AIO_USERNAME "/feeds/photocell");
-Adafruit_MQTT_Publish Pub_Light = Adafruit_MQTT_Publish(&mqtt, AIO_USERNAME "/feeds/esp8266.light");  //Publikacja stanu
+Adafruit_MQTT_Publish Pub_Analog = Adafruit_MQTT_Publish(&mqtt, AIO_USERNAME "/feeds/esp8266.analog");  //Publikacja stanu
 
 // Setup a feed called 'onoff' for subscribing to changes.
 //Adafruit_MQTT_Subscribe light = Adafruit_MQTT_Subscribe(&mqtt, AIO_USERNAME "/feeds/light");
@@ -139,6 +140,11 @@ void setup() {
 
   // Setup MQTT subscription for onoff feed.
   mqtt.subscribe(&Sub_Light); //pobranie stanu Light
+
+
+
+
+
 }
 
 uint32_t x = 0;
@@ -209,6 +215,24 @@ State_Button = digitalRead(Port_Button);
 
   }
 
+      
+   if (! Pub_Analog.publish(Value_analog_out))
+      Serial.println(F("Failed to publish Analog"));
+    else
+      Serial.println(F("Analog published!"));
+
+     delay(5000);
+
+
+      
+/*     
+    if (! humidity.publish(humidity_data))
+      Serial.println(F("Failed to publish humidity"));
+    else
+      Serial.println(F("Humidity published!"));
+*/
+  
+
   // Now we can publish stuff!
   /*Serial.print(F("\nSending photocell val "));
     Serial.print(x);
@@ -226,6 +250,7 @@ State_Button = digitalRead(Port_Button);
     mqtt.disconnect();
     }
   */
+
 }
 
 // Function to connect and reconnect as necessary to the MQTT server.
